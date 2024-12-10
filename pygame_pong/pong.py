@@ -192,12 +192,12 @@ class Ball(pygame.sprite.Sprite):
         self.rect.y += self.vel_y
         self.rect.x += self.vel_x
         if self.rect.y < 0:
-            self.rect.y += 1
+            self.rect.y = 1
             if 180 < self.angle < 360:
                 self.angle = 360 - self.angle
                 
         if self.rect.y > (p.SCREEN_HEIGHT-p.BALL_HEIGHT):
-            self.rect.y -= 1
+            self.rect.y = p.SCREEN_HEIGHT-p.BALL_HEIGHT - 1
             if 0 < self.angle < 180:
                 self.angle = 360 - self.angle
 
@@ -238,7 +238,6 @@ while True:
             elif event.key == pygame.K_w:
                 p1.move_up()
             elif event.key == pygame.K_n:
-                p1.move_up()
                 ball.stop()
                 ball.rect.x, ball.rect.y = p.SCREEN_WIDTH /2, p.SCREEN_HEIGHT / 2
                 p1_score = 0
@@ -276,7 +275,7 @@ while True:
         ball.speed += 1
     
     if pygame.sprite.collide_rect(ball, p1):
-        center_offset = ball.rect.centery - p1.rect.centery
+        center_offset = ball.rect.centery - p1.rect.centerys
         ball.change_direction((center_offset / (p.PADDLE_HEIGHT / 2)) * 100, "p1")
         shots += 1
     elif pygame.sprite.collide_rect(ball, p2):
