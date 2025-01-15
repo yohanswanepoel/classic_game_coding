@@ -67,38 +67,51 @@ class Lunar_Game(arcade.Window):
         self.moon_surface = None
         self.landing_velocity = None
         self.game_started = None
-
+        self.substrate: Optional[arcade.SpriteList] = None
         self.physics_engine = Optional[arcade.PymunkPhysicsEngine]
         arcade.set_background_color(arcade.color.BLACK)
 
     def setup(self):
+        print("setup")
         # Set up the game variables. Call to re-start the game. """
         # Create your sprites and sprite lists here
-        self.player_list = arcade.SpriteList()
         self.moon_list = arcade.SpriteList()
-
-        self.player_sprite = Lunar_Sprite()
         self.level = 6
         
         self.boost_sound = arcade.load_sound("sounds/drive.wav")
         self.win_sound = arcade.load_sound("sounds/win.wav")
         self.crash_sound = arcade.load_sound("sounds/bomb.wav")
         
-        self.player_sprite.center_x = PLAYER_START_X
-        self.player_sprite.center_y = PLAYER_START_Y
-
-        self.player_list.append(self.player_sprite)
+        self.position_player()
         
         # Define surface
         if self.moon_surface is None:
             self.moon_surface = Moon()
-            
+                
         self.moon_list = None
         self.moon_list = self.moon_surface.generate_surface(self.level)
+        self.substrate = self.moon_surface.get_substrate()
         self.game_started = False
+        
+        
+    def position_player(self):
+        if self.player_sprite is None:
+            self.player_list = arcade.SpriteList()
+            self.player_sprite = Lunar_Sprite()
+            
+        self.player_sprite.center_x = PLAYER_START_X
+        self.player_sprite.center_y = PLAYER_START_Y
+        if len(self.player_list) == 0:
+            self.player_list.append(self.player_sprite)
        
     def start_game(self):
         ## Physics Engine
+        print("start")
+        self.player_sprite.center_x = PLAYER_START_X
+        self.player_sprite.center_y = PLAYER_START_Y
+        self.player_sprite.fuel = PLAYER_STARTING_FUEL
+        self.player_sprite.landed = False
+        #self.position_player()
         damping = DEFAULT_DAMPING
         gravity = (0, -GRAVITY)
         self.good_landing = False
@@ -120,10 +133,10 @@ class Lunar_Game(arcade.Window):
                                             collision_type="surface",
                                             body_type=arcade.PymunkPhysicsEngine.STATIC)
         
+        # Collision handler
         def lander_on_surface_handler(player_sprite, surface_sprite, _arbiter, _space, _data):
-            if not player_sprite.landed:
-                #print(player_sprite.previous_velocity)
-                print(player_sprite.get_velocity(self.physics_engine))
+            if self.player_sprite.landed == False:
+                #print(player_sprite.get_velocity(self.physics_engine))
                 self.velocity = player_sprite.previous_velocity
                 if surface_sprite.direction != 0:
                     self.good_landing = False
@@ -132,7 +145,14 @@ class Lunar_Game(arcade.Window):
                         self.good_landing = True
                     else:
                         self.good_landing = False
-            self.player_sprite.landed = True
+                        
+                if self.good_landing:
+                    arcade.play_sound(self.win_sound)
+                else:
+                    arcade.play_sound(self.crash_sound)
+                    
+                self.player_sprite.landed = True
+                self.game_started = False
             
         
         self.physics_engine.add_collision_handler("player","surface", post_handler=lander_on_surface_handler)
@@ -164,19 +184,6 @@ class Lunar_Game(arcade.Window):
             if not self.player_sprite.landed:
                 self.player_sprite.previous_velocity = self.player_sprite.get_velocity(self.physics_engine)
                 
-            if self.player_sprite.landed: # Good player landed we have to do something
-                if self.good_landing:
-                    print("win")
-                    print(self.player_sprite.previous_velocity)
-                    arcade.play_sound(self.win_sound)
-                else:
-                    print("crash")
-                    print(self.player_sprite.previous_velocity)
-                    arcade.play_sound(self.crash_sound)
-                    
-                self.player_sprite.landing = False
-                self.setup()
-    
             self.physics_engine.step()
         
     def apply_boost(self, force):
@@ -189,22 +196,42 @@ class Lunar_Game(arcade.Window):
         if self.sound_player:
             arcade.stop_sound(self.sound_player)
             self.sound_player = None
-
+        
     def on_draw(self):
         # This is where we draw things
         # Clear screen and start drawing
         arcade.start_render()
         # 
         self.moon_list.draw()
+        self.substrate.draw()
         velocity = 0
         if self.game_started:
             velocity = self.player_sprite.get_velocity(self.physics_engine)
-        score_text = f"Fuel: {self.player_sprite.fuel} - Speed: {velocity}"
+            
+        velocity_text = f"Speed: {velocity:.2f}"
+        fuel_text = f"Fuel: {self.player_sprite.fuel}"
+        
+        if velocity < -100:
+            color = arcade.csscolor.RED
+        else:
+            color = arcade.csscolor.GREEN 
         arcade.draw_text(
-            score_text,
+            velocity_text,
             10,
             10,
-            arcade.csscolor.WHITE,
+            color,
+            18,
+        )
+        
+        if self.player_sprite.fuel < 50:
+            color = arcade.csscolor.RED
+        else:
+            color = arcade.csscolor.GREEN 
+        arcade.draw_text(
+            fuel_text,
+            SCREEN_WIDTH - 120,
+            10,
+            color,
             18,
         )
         
@@ -215,7 +242,7 @@ class Lunar_Game(arcade.Window):
         else:
             win_loose = ""
         if not self.game_started:
-            start_text = f" {win_loose}"
+            start_text = f" {win_loose} velocity: {self.player_sprite.previous_velocity:.2f}"
             arcade.draw_text(
                 start_text,
                 SCREEN_WIDTH / 2 - 100,
@@ -225,10 +252,10 @@ class Lunar_Game(arcade.Window):
             )
             
         if not self.game_started:
-            start_text = "Press [s] to start the game"
+            start_text = "[s] to start the game. [r] to reload surface"
             arcade.draw_text(
                 start_text,
-                SCREEN_WIDTH / 2 - 100,
+                SCREEN_WIDTH / 2 - 200,
                 SCREEN_HEIGHT / 2 - 40,
                 arcade.csscolor.WHITE,
                 18,
@@ -252,6 +279,9 @@ class Lunar_Game(arcade.Window):
             
         if key == arcade.key.S:
             self.start_game()
+            
+        if key == arcade.key.R:
+            self.setup()
 
     def on_key_release(self, key, key_modifiers):
         # Called whenever the user lets off a previously pressed key.
@@ -304,18 +334,20 @@ class Lunar_Sprite(arcade.Sprite):
 class Moon():
     def __init__(self):
         super().__init__()
+        self.substrate = None
         # Blocks are 40px wide, screen width = 800 so need 20 blocks
         #self.surface = arcade.SpriteList()
     
     # needs a generator with a percentage of flat vs hills
     # hills need to consider x, y as well... e.g. if first on slopes up then 
-    # next should be one block higher
+    # next should be one block 
     
-    def generate_surface(self, level):
-        
-        # percentage flat per level... 1 = 80%, 2 = 60%, 3 = 40%, 4 = 20%, 5 = 10% (rest)
-
+    def get_substrate(self):
+        return self.substrate
+    
+    def create_level_distribution(self, level):
         # setup blocks
+        # percentage flat per level... 1 = 80%, 2 = 60%, 3 = 40%, 4 = 20%, 5 = 10% (rest)
         tmp_list = []
         if level > 6:
             level = 6
@@ -335,6 +367,9 @@ class Moon():
         
         # Shuffle blocks
         random.shuffle(tmp_list)
+        return tmp_list
+    
+    def presentation_adjustment_surface(self, tmp_list):
         lowest = 0
         current_height = 0
         previous_height = 0
@@ -346,8 +381,6 @@ class Moon():
             if current_height < lowest:
                 lowest = current_height
                 
-            
-                
             t_sprite.col = i
             t_sprite.row = previous_height
             if t_sprite.direction == 1:
@@ -355,15 +388,23 @@ class Moon():
             previous_height = current_height
             i += 1
         
-        
         adjuster = 0
         if lowest < 0:
             adjuster = (lowest * -1) + 1
         if lowest == 0:
             adjuster = 1
             
+        return adjuster
+        
+    def generate_surface(self, level):
+        tmp_list = self.create_level_distribution(level)
+        
+        adjuster = self.presentation_adjustment_surface(tmp_list)
+        
+        # Load sprites to display
         i = 0
         surface = arcade.SpriteList()
+        self.substrate = arcade.SpriteList()
         for t_sprite in tmp_list:
             #print(sprite.original_index)
             if t_sprite.direction == 0:  
@@ -374,6 +415,13 @@ class Moon():
                 sprite = Moon_Block("images/left.png")
             sprite.row = t_sprite.row + adjuster
             sprite.center_y = (sprite.row * 40) - 20
+            sprite.direction = t_sprite.direction
+            for x in range (sprite.row): # create another sprite that lives in the substrate
+                core = Moon_Block("images/core.png")
+                core.center_x = (i * 40) - 20
+                core.center_y = ((x) * 40) - 20
+                self.substrate.append(core)
+                
             sprite.center_x = (i * 40) - 20
             sprite.col = t_sprite.col
             surface.append(sprite)
