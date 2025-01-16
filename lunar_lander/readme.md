@@ -1,1 +1,1 @@
-https://api.arcade.academy/en/2.6.17/examples/starting_template.html#starting-template
+https://api.arcade.academy/en/2.6.17/examples/starting_template.html#starting-template## Todo* add boundaries (maybe improve boundaries you can only be out for 5 seconds)* clean up code* added guages - move them up* once landed added space ship* need to fly back to succeed* improve graphics* package
