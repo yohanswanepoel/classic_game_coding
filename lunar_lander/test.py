@@ -72,7 +72,6 @@ class Lunar_Game(arcade.Window):
         arcade.set_background_color(arcade.color.BLACK)
 
     def setup(self):
-        print("setup")
         # Set up the game variables. Call to re-start the game. """
         # Create your sprites and sprite lists here
         self.moon_list = arcade.SpriteList()
@@ -106,7 +105,6 @@ class Lunar_Game(arcade.Window):
        
     def start_game(self):
         ## Physics Engine
-        print("start")
         self.player_sprite.center_x = PLAYER_START_X
         self.player_sprite.center_y = PLAYER_START_Y
         self.player_sprite.fuel = PLAYER_STARTING_FUEL
