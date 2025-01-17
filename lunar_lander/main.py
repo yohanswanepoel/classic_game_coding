@@ -76,6 +76,7 @@ class Lunar_Game(arcade.Window):
         self.moon_list: Optional[arcade.SpriteList] = None
         # Player sprite
         self.player_sprite: Optional[arcade.Sprite] = None
+        self.background: Optional[Background] = None
         self.crash_sound = None
         self.boost_sound = None
         self.left_right = None  
@@ -114,6 +115,8 @@ class Lunar_Game(arcade.Window):
         # Create your sprites and sprite lists here
         self.moon_list = arcade.SpriteList()
         self.level = 6
+        self.background = Background()
+        self.background.setup(150, 2)
         
         self.boost_sound = arcade.load_sound("sounds/drive.wav")
         self.win_sound = arcade.load_sound("sounds/win.wav")
@@ -273,11 +276,14 @@ class Lunar_Game(arcade.Window):
         # Clear screen and start drawing
         arcade.start_render()
         
+        
         # first draw boundaries
         arcade.draw_rectangle_outline(SCREEN_CENTER_X, SCREEN_CENTER_Y,
                                       SCREEN_WIDTH - 2, SCREEN_HEIGHT - 2,
                                       arcade.csscolor.WHITE, 1)
+        
         # draw sprites
+        self.background.draw()
         self.moon_list.draw()
         self.substrate.draw()
         if not self.player_sprite.landed or self.good_landing:
@@ -430,6 +436,40 @@ class Lunar_Sprite(arcade.Sprite):
     def get_velocity(self, physics_engine):
         return physics_engine.get_physics_object(self).body.velocity.y
     
+class Background():
+    def __init__(self):
+        self.starts = None
+        
+    def setup(self, star_count, max_size):
+        self.stars = []
+        for x in range(0, star_count):
+            star_x = random.randint(0, SCREEN_WIDTH)
+            star_y = random.randint(40, SCREEN_HEIGHT)
+            star_r = random.randint(240, 255)
+            star_g = random.randint(240, 255)
+            star_b = random.randint(100, 255)
+            star_radius = random.randint(1, max_size)
+            star = Star()
+            star.create(star_x, star_y, [star_r, star_g, star_b], star_radius)
+            self.stars.append(star)
+            
+    def draw(self):
+        for star in self.stars:
+            arcade.draw_circle_filled(star.x, star.y, star.radius, star.colour)
+        
+            
+class Star():
+    def __init__(self):
+        self.x = None
+        self.y = None
+        self.colour = None # array
+        self.radius = None
+    
+    def create(self, x, y, colour, radius):
+        self.x = x
+        self.y = y
+        self.colour = colour
+        self.radius = radius
 
 class Moon():
     def __init__(self):
