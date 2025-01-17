@@ -4,7 +4,6 @@
 # Imports
 import arcade
 from typing import Optional
-import math
 import pyglet
 import random
 
