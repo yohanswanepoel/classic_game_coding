@@ -30,14 +30,39 @@ SURFACE_FRICTION = 0.7
 # Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
+SCREEN_CENTER_X = SCREEN_WIDTH / 2
+SCREEN_CENTER_Y = SCREEN_HEIGHT / 2
 SCREEN_TITLE = "Lumar Lander 2024 - Python Arcade"
 RADIUS = 20
-PLAYER_START_X = SCREEN_HEIGHT / 2
+PLAYER_START_X = SCREEN_CENTER_X
 PLAYER_START_Y = SCREEN_HEIGHT - 80
 
 LEFT = 2
 RIGHT = 1
 STRAIGHT = 0
+EXPLOSION_TEXTURE_COUNT = 60
+
+class Explosion(arcade.Sprite):
+    """ This class creates an explosion animation """
+
+    def __init__(self, texture_list):
+        super().__init__()
+
+        # Start at the first frame
+        self.current_texture = 0
+        self.textures = texture_list
+
+    def update(self):
+
+        # Update to the next frame of the animation. If we are at the end
+        # of our frames, then delete this sprite.
+        self.current_texture += 1
+        if self.current_texture < len(self.textures):
+            self.set_texture(self.current_texture)
+        else:
+            self.remove_from_sprite_lists()
+
+
 
 # Classes
 class Lunar_Game(arcade.Window):
@@ -67,9 +92,23 @@ class Lunar_Game(arcade.Window):
         self.moon_surface = None
         self.landing_velocity = None
         self.game_started = None
+        self.explode = False
         self.substrate: Optional[arcade.SpriteList] = None
         self.physics_engine = Optional[arcade.PymunkPhysicsEngine]
         arcade.set_background_color(arcade.color.BLACK)
+        # takes too long and would cause the game to pause.
+        self.explosions_list = None
+        self.explosion_texture_list = []
+
+        columns = 16
+        count = 60
+        sprite_width = 256
+        sprite_height = 256
+        file_name = ":resources:images/spritesheets/explosion.png"
+
+        # Load the explosions from a sprite sheet
+        self.explosion_texture_list = arcade.load_spritesheet(file_name, sprite_width, sprite_height, columns, count)
+
 
     def setup(self):
         # Set up the game variables. Call to re-start the game. """
@@ -80,6 +119,7 @@ class Lunar_Game(arcade.Window):
         self.boost_sound = arcade.load_sound("sounds/drive.wav")
         self.win_sound = arcade.load_sound("sounds/win.wav")
         self.crash_sound = arcade.load_sound("sounds/bomb.wav")
+        self.explosions_list = arcade.SpriteList()
         
         self.position_player()
         
@@ -90,6 +130,8 @@ class Lunar_Game(arcade.Window):
         self.moon_list = None
         self.moon_list = self.moon_surface.generate_surface(self.level)
         self.substrate = self.moon_surface.get_substrate()
+        
+        self.player_sprite.fuel = PLAYER_STARTING_FUEL
         self.game_started = False
         
         
@@ -148,17 +190,40 @@ class Lunar_Game(arcade.Window):
                     arcade.play_sound(self.win_sound)
                 else:
                     arcade.play_sound(self.crash_sound)
+                    self.explode = True
                     
                 self.player_sprite.landed = True
                 self.game_started = False
+                
             
-        
         self.physics_engine.add_collision_handler("player","surface", post_handler=lander_on_surface_handler)
+        
+        
         
     def on_update(self, delta_time):
         # All the logic to move, and the game logic goes here.
         # Normally, you'll call update() on the sprite lists that need it.
+        self.explosions_list.update()
+        
+        if self.explode:
+            explosion = Explosion(self.explosion_texture_list)
+
+            # Move it to the location of the coin
+            explosion.center_x = self.player_sprite.center_x
+            explosion.center_y = self.player_sprite.center_y + 30
+
+            # Call update() because it sets which image we start on
+            explosion.update()
+
+            # Add to a list of sprites that are explosions
+            self.explosions_list.append(explosion)
+            self.explode = False
+        
         if self.game_started:
+            
+            if self.player_out_of_bounds(self.player_sprite):
+                self.game_started = False
+            
             if self.player_sprite.has_fuel():
                 if self.boost:
                     self.player_sprite.boost_animation()
@@ -175,7 +240,6 @@ class Lunar_Game(arcade.Window):
                     
                 if not self.boost and self.player_direction == STRAIGHT:
                     self.no_boost()
-                    
             else:
                 self.no_boost()
                     
@@ -187,21 +251,40 @@ class Lunar_Game(arcade.Window):
     def apply_boost(self, force):
         self.physics_engine.apply_force(self.player_sprite, force)
         self.play_boost_sound()
-        self.player_sprite.fuel -= 1
+        if self.player_sprite.fuel > 0:
+            self.player_sprite.fuel -= 1
         
     def no_boost(self):
         self.player_sprite.normal_animation()
         if self.sound_player:
             arcade.stop_sound(self.sound_player)
             self.sound_player = None
+            
+    def player_out_of_bounds(self, player):
+        if player.center_x < 0 or player.center_x > SCREEN_WIDTH:
+            return True
+        if player.center_y < 0:
+            return True
+        return False
         
     def on_draw(self):
-        # This is where we draw things
         # Clear screen and start drawing
         arcade.start_render()
-        # 
+        
+        # first draw boundaries
+        arcade.draw_rectangle_outline(SCREEN_CENTER_X, SCREEN_CENTER_Y,
+                                      SCREEN_WIDTH - 2, SCREEN_HEIGHT - 2,
+                                      arcade.csscolor.WHITE, 1)
+        # draw sprites
         self.moon_list.draw()
         self.substrate.draw()
+        if not self.player_sprite.landed or self.good_landing:
+            self.player_list.draw()
+        self.explosions_list.draw()
+        
+        #
+        # draw UI elements
+        #
         velocity = 0
         if self.game_started:
             velocity = self.player_sprite.get_velocity(self.physics_engine)
@@ -209,29 +292,11 @@ class Lunar_Game(arcade.Window):
         velocity_text = f"Speed: {velocity:.2f}"
         fuel_text = f"Fuel: {self.player_sprite.fuel}"
         
-        if velocity < -100:
-            color = arcade.csscolor.RED
-        else:
-            color = arcade.csscolor.GREEN 
-        arcade.draw_text(
-            velocity_text,
-            10,
-            10,
-            color,
-            18,
-        )
+        arcade.draw_text(velocity_text, 10, SCREEN_HEIGHT - 40, arcade.csscolor.WHITE, 12,)
         
-        if self.player_sprite.fuel < 50:
-            color = arcade.csscolor.RED
-        else:
-            color = arcade.csscolor.GREEN 
-        arcade.draw_text(
-            fuel_text,
-            SCREEN_WIDTH - 120,
-            10,
-            color,
-            18,
-        )
+        arcade.draw_text(fuel_text, 10 , SCREEN_HEIGHT - 20, arcade.csscolor.WHITE, 12,)
+        self.draw_fuel_guage(self.player_sprite.fuel, PLAYER_STARTING_FUEL, 0, 50, True, 
+                        90, SCREEN_HEIGHT - 20, 150, 10)
         
         if self.good_landing:
             win_loose = "WINNER!"
@@ -239,26 +304,37 @@ class Lunar_Game(arcade.Window):
             win_loose = "TRY AGAIN"
         else:
             win_loose = ""
-        if not self.game_started:
-            start_text = f" {win_loose} velocity: {self.player_sprite.previous_velocity:.2f}"
-            arcade.draw_text(
-                start_text,
-                SCREEN_WIDTH / 2 - 100,
-                SCREEN_HEIGHT / 2,
-                arcade.csscolor.WHITE,
-                18,
-            )
             
         if not self.game_started:
+            start_text = f" {win_loose} velocity: {self.player_sprite.previous_velocity:.2f}"
+            arcade.draw_text(start_text, SCREEN_CENTER_X - 100, SCREEN_CENTER_Y, arcade.csscolor.WHITE, 18,)
+            
             start_text = "[s] to start the game. [r] to reload surface"
-            arcade.draw_text(
-                start_text,
-                SCREEN_WIDTH / 2 - 200,
-                SCREEN_HEIGHT / 2 - 40,
-                arcade.csscolor.WHITE,
-                18,
-            )
-        self.player_list.draw()
+            arcade.draw_text(start_text, SCREEN_CENTER_X - 200, SCREEN_CENTER_Y - 40, arcade.csscolor.WHITE, 18,)
+            
+        
+        
+        
+    
+    def draw_fuel_guage(self, current, max, min, cut_off, draw_mid, x, y, width, height):
+        
+        # max translate to width
+        factor = max / width
+        current_level = current / factor
+        arcade.draw_xywh_rectangle_outline(x, y,
+                                      width, height,
+                                      arcade.csscolor.WHITE, 1)
+    
+        colour = arcade.csscolor.GREEN
+        if draw_mid and current < max  / 2:
+            colour = arcade.csscolor.ORANGE
+        if current < cut_off:
+            colour = arcade.csscolor.RED
+        arcade.draw_xywh_rectangle_filled(x, y,
+                                      current_level, height-1,
+                                      colour)
+        
+        
         
 
     def on_key_press(self, key, key_modifiers):
@@ -273,7 +349,7 @@ class Lunar_Game(arcade.Window):
             self.player_direction = RIGHT
             
         if key == arcade.key.ESCAPE:
-            self.setup()
+            arcade.close_window()
             
         if key == arcade.key.S:
             self.start_game()
