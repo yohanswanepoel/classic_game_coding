@@ -1,1 +1,1 @@
-https://api.arcade.academy/en/2.6.17/examples/starting_template.html#starting-template## Todo* add boundary countdown (maybe)* clean up code* add guages fuel done* add guage speed - move them up* once landed added space ship* need to fly back to succeed* explode ship* improve graphics* package
+https://api.arcade.academy/en/2.6.17/examples/starting_template.html#starting-template## Todo* add boundary countdown (maybe)* clean up code* once landed added space ship and return * maybe v2* Fireworks if win* improve graphics* draw random stars* package

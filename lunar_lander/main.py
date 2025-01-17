@@ -222,6 +222,9 @@ class Lunar_Game(arcade.Window):
             
             if self.player_out_of_bounds(self.player_sprite):
                 self.game_started = False
+                self.player_sprite.landed = True
+                self.explode = True
+                arcade.play_sound(self.crash_sound)
             
             if self.player_sprite.has_fuel():
                 if self.boost:
@@ -292,6 +295,7 @@ class Lunar_Game(arcade.Window):
         fuel_text = f"Fuel: {self.player_sprite.fuel}"
         
         arcade.draw_text(velocity_text, 10, SCREEN_HEIGHT - 40, arcade.csscolor.WHITE, 12,)
+        self.draw_speed_guage(velocity, 300, -300, -100, -60, 10, SCREEN_CENTER_Y, 15, SCREEN_CENTER_Y - 50)
         
         arcade.draw_text(fuel_text, 10 , SCREEN_HEIGHT - 20, arcade.csscolor.WHITE, 12,)
         self.draw_fuel_guage(self.player_sprite.fuel, PLAYER_STARTING_FUEL, 0, 50, True, 
@@ -307,12 +311,35 @@ class Lunar_Game(arcade.Window):
         if not self.game_started:
             start_text = f" {win_loose} velocity: {self.player_sprite.previous_velocity:.2f}"
             arcade.draw_text(start_text, SCREEN_CENTER_X - 100, SCREEN_CENTER_Y, arcade.csscolor.WHITE, 18,)
+            self.draw_speed_guage(self.player_sprite.previous_velocity, 300, -300, -100, -60, 10, SCREEN_CENTER_Y, 15, SCREEN_CENTER_Y - 50)
             
             start_text = "[s] to start the game. [r] to reload surface"
             arcade.draw_text(start_text, SCREEN_CENTER_X - 200, SCREEN_CENTER_Y - 40, arcade.csscolor.WHITE, 18,)
             
         
         
+    def draw_speed_guage(self, current, max, min, cut_off, draw_mid, x, y, width, height):
+        
+        # max translate to width
+        factor = max / height
+        # divide by 2 as we are starting in the middle
+        current_level = (current / factor) / 2
+        arcade.draw_xywh_rectangle_outline(x, y,
+                                      width, height,
+                                      arcade.csscolor.WHITE, 1)
+    
+        colour = arcade.csscolor.GREEN
+        if current > 0:
+            colour = arcade.csscolor.BLUE
+        elif current < draw_mid:
+            colour = arcade.csscolor.ORANGE
+        elif current < cut_off:
+            colour = arcade.csscolor.RED
+        # get center of guage
+        guage_center_y = y + (height / 2)
+        arcade.draw_xywh_rectangle_filled(x, guage_center_y,
+                                      width-1, current_level,
+                                      colour)
         
     
     def draw_fuel_guage(self, current, max, min, cut_off, draw_mid, x, y, width, height):
