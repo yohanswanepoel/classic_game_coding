@@ -109,6 +109,12 @@ class Lunar_Game(arcade.Window):
         # Load the explosions from a sprite sheet
         self.explosion_texture_list = arcade.load_spritesheet(file_name, sprite_width, sprite_height, columns, count)
 
+    def on_resize(self, width, height):
+        """ This method is automatically called when the window is resized. """
+
+        # Call the parent. Failing to do this will mess up the coordinates,
+        # and default to 0,0 at the center and the edges being -1 to 1.
+        super().on_resize(width, height)
 
     def setup(self):
         # Set up the game variables. Call to re-start the game. """
