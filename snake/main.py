@@ -30,7 +30,7 @@ LEFT = 2
 UP = 3
 DOWN = 4
 
-
+# mPos.y += velocityScale * mVelocity * deltaTime
 # needs to be fullscreen and then get size of screen
 # determine ratios from there
 
